@@ -1,0 +1,28 @@
+---
+title: "Final Project ideas"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+date: "2025-10-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Instructions: Add an R Markdown file to your repository with at least three (3) ideas to pursue for the final project. Specifically: for each idea describe in a short paragraph the question, why it is important, one or more potential datasets you plan to use,
+and the kind of analysis needed (type of inference, descriptive statistic, etc.) to
+answer the question
+
+IDEA 1: How public opinion on climate change differs based on political party and age
+
+In this question we would seek to uncover how personal opinions on climate change differ by age and political party. This question is important because political opinions are largely influenced by the framing of issues in the media, and discovering how this opinion changes can help explain what types of framing are working, and potentially help contribute to more effective policy actions and media considerations on the issue of climate change. For this question, we could use research from Pew Research Center or Gallup polling data, both of which should provide insight into which issues are important to voters. The kind of analysis needed for this question would be descriptive statistics and methods of displaying results (bar charts), among others. 
+
+IDEA 2: How media consumption affects feelings of political polarization
+
+In this question we would begin to uncover how levels of media consumption affect feelings of political polarization. This question is important because many people report feeling increased levels of polarization in recent times, which has occured at the same time as an increase in access to technology and social media. Discovering whether these two issues have a correlation or causation relationship could yield important insights about how to increase positive feelings and lessen negative feelings as assocated with politics. For this question, we would need survey data specifically, likely from Pew Research or American National Election Studies, which are two sources found quickly but not fully investigated. This analysis would also need descriptive statistics, but would also benefit from mean comparisions between people who consume a specific type of media and then report higher or lower levels of polarization feelings. 
+
+IDEA 3: How young adult engagement in politics has changed over time
+
+The last idea deals with whether young adult engagement in politics has changed over time, and seeks to uncover why this change may have occured. This question is important because youth participation in politics has the potential to seriously impact the outcome of elections. The issues that are important to youth also differ from those that are important to other generations, so this question may yield insights into what issues potential candidates should focus on in their campaigns. For this question, we could use datasets from the Census or national survey data, and we would be doing trend analysis or potentially running a regression with age as an indicator. 

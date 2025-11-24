@@ -26,6 +26,7 @@ library(usmap)
 library(gganimate)
 library(gifski)
 ```
+
 ```{r}
 bigclimatedata <- foreign::read.spss("~/datasci01/data/CCAM SPSS Data 2008-2024.sav", to.data.frame=TRUE)
 
@@ -81,17 +82,6 @@ concern_trends <- climatedata %>%
   filter(!is.na(region9))
 concern_trends
 ```
-
-
-Data Description. Briefly describe your dataset and be sure to include the following:
-• Source (organization)
-• Type (cross-sectional vs. time-series; observational vs. experimental)
-• Target population
-• Time-span
-• Unit of analysis
-• Sample size
-• Relevant variables
-• Any other relevant information (e.g., is it a survey? does it have weights?)
 
 
 ```{r}
@@ -258,20 +248,3 @@ anim_rep <- make_party_animation("Republicans")
 anim_ind <- make_party_animation("Independent/Other")
 
 ```
-
-
-Next Steps. In bullet points, outline the analyses and visualizations you plan to complete for the final
-report. Focus on what remains to be done and how it advances your research question.
-• Models: What statistical models will you run (e.g., linear, logistic, or random forest)? Will you test
-interactions or subgroup effects?
-• Variables: Which predictors, controls, or transformations will you add? Any new derived or recoded
-variables?
-• Visualizations: What plots will you produce to summarize results (e.g., coefficient plots, predicted
-probabilities, subgroup comparisons)? How will you display uncertainty (error bars, confidence inter-
-vals)?
-• Robustness Checks: Any robustness checks to weights, missing data, or model assumptions?
-Example:
-• Estimate a logistic regression predicting low election confidence from misinformation expo-
-sure and partisanship.
-• Visualize the distribution of predicted probabilities within subgroups as histograms.
-• Compare weighted and unweighted estimates as a robustness check.

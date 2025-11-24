@@ -1,0 +1,277 @@
+---
+title: "politicalanalyticsfinal_projectfirstvis"
+author: "vat2129"
+date: "2025-11-19"
+output: html_document
+---
+
+For this assignment, please produce a report and (1) submit the knitted PDF to Courseworks and (2) upload
+both the Rmd file and PDF output to your Github repo with the following (in mostly complete sentences,
+not bullet points). This draft need not be longer than 1-2 pages.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(shiny)
+library(dplyr)
+library(foreign)
+library(tidyr)
+library(ggplot2)
+library(maps)
+library(stringr)
+library(usmap)
+library(gganimate)
+library(gifski)
+```
+```{r}
+bigclimatedata <- foreign::read.spss("~/datasci01/data/CCAM SPSS Data 2008-2024.sav", to.data.frame=TRUE)
+
+#wanted to understand what % of each variable was NA
+total_rows <- nrow(bigclimatedata)
+na_counts <- colSums(is.na(bigclimatedata))
+percentage_na <- (na_counts / total_rows) * 100
+percentage_na
+
+#here we are funneling the data into the pieces that will be pertinent to our analysis
+climatedata <- bigclimatedata %>% 
+  select(case_ID, wave, weight_wave, weight_aggregate, year, happening, worry, 
+         reg_CO2_pollutant, fund_research, party_w_leaners, region9, educ, 
+         educ_category, age, age_category, income, income_category, generation,
+         starts_with("harm"), cause_recoded) %>% 
+  mutate(party_w_leaners = case_when(
+    party_w_leaners == "Refused" ~ NA,
+    party_w_leaners == "No party/Not interested in politics" ~ "Independent/Other",
+    TRUE ~ party_w_leaners)) %>%
+  mutate(across(starts_with("harm"), ~case_when(
+    . == "Don't know" ~ 0, 
+    . == "Not at all" ~ 1,
+    . == "Only a little" ~ 2,
+    . == "A moderate amount" ~ 3,
+    . == "A great deal" ~ 4,
+    . == "Refused" ~ NA))) %>%
+  mutate(worry = case_when(
+    worry == "Not at all worried" ~ 1,
+    worry == "Not very worried" ~ 2,
+    worry == "Somewhat worried" ~ 3,
+    worry == "Very worried" ~ 4,
+    worry == "Refused" ~ NA)) %>%
+  mutate(harm_worry = worry) %>%
+  mutate(non_na_count = rowSums(!is.na(across(starts_with("harm"))))) %>% 
+  mutate(concern_score = rowMeans(across(starts_with("harm")), na.rm = TRUE))
+
+```
+Fun Numbers to note!
+```{r}
+#2256 people in this data set explicitly believe that global warming is not happening
+climatedata %>% 
+  select(cause_recoded) %>%
+  count(cause_recoded)
+
+concern_trends <- climatedata %>%
+  group_by(year, region9) %>%
+  summarise(
+    #calulate a weighted average
+    mean_concern_score = weighted.mean(concern_score, w = weight_aggregate, na.rm = TRUE),
+    n = n(),
+    .groups = 'drop') %>%
+  #remove NA 
+  filter(!is.na(region9))
+concern_trends
+```
+
+
+Data Description. Briefly describe your dataset and be sure to include the following:
+• Source (organization)
+• Type (cross-sectional vs. time-series; observational vs. experimental)
+• Target population
+• Time-span
+• Unit of analysis
+• Sample size
+• Relevant variables
+• Any other relevant information (e.g., is it a survey? does it have weights?)
+
+
+```{r}
+climatedata %>%
+  summarize(mean = mean(concern_score, na.rm = TRUE), 
+            sd = sd(concern_score, na.rm = TRUE),
+            n = n(),
+            .by = c(party_w_leaners, generation))%>%
+  arrange(party_w_leaners, generation)
+
+climatedata %>%
+  summarize(mean = mean(concern_score, na.rm = TRUE), 
+            sd = sd(concern_score, na.rm = TRUE),
+            n = n(),
+            .by = c(party_w_leaners, region9))%>%
+  arrange(party_w_leaners, region9)
+```
+
+
+```{r}
+#here is a more general look of the various parties concern of climate change (not factoring in time)
+region_party_scores <- climatedata %>%
+  group_by(region9, party_w_leaners) %>%
+  summarize(mean_concern = weighted.mean(concern_score, w = weight_aggregate, na.rm = TRUE), 
+    .groups = 'drop') %>%
+  filter(!is.na(party_w_leaners))
+  
+
+region_states <- tibble(
+  state = state.abb,
+  region9 = case_when(
+    state %in% c("CT","MA","ME","NH","RI","VT") ~ "New England",
+    state %in% c("NJ","NY","PA") ~ "Mid-Atlantic",
+    state %in% c("IL","IN","MI","OH","WI") ~ "East-North Central",
+    state %in% c("IA","KS","MN","MO","ND","NE","SD") ~ "West-North Central",
+    state %in% c("DC","DE","FL","GA","MD","NC","SC","VA","WV") ~ "South Atlantic",
+    state %in% c("AL","KY","MS","TN") ~ "East-South Central",
+    state %in% c("AR","LA","OK","TX") ~ "West-South Central",
+    state %in% c("AZ","CO","ID","MT","NM","NV","UT","WY") ~ "Mountain",
+    state %in% c("AK","CA","HI","OR","WA") ~ "Pacific",
+    TRUE ~ NA))
+
+map_df <- region_states %>%
+  left_join(region_party_scores, by = "region9")
+
+
+plot_usmap(data = map_df,
+  values = "mean_concern",
+  color = "white") +
+  scale_fill_continuous(name = "Climate Concern",
+                        label = scales::comma) +
+  labs(title = "Climate Concern by Region and Party",
+       subtitle = "Mean concern score, faceted by party") +
+  facet_wrap(~ party_w_leaners) +
+  theme(legend.position = "right")
+```
+```{r}
+#here is the general map over time (all parties)
+region_scores_time <- climatedata %>%
+  mutate(year = as.integer(year)) %>%
+  group_by(year, region9) %>%
+  #calculate the weighted mean concern score
+  summarize(mean_concern = weighted.mean(concern_score, w = weight_aggregate, na.rm = TRUE), 
+    .groups = 'drop') %>%
+  complete(year, region9) %>%
+  #remove rows where a region/year combination resulted in NA mean concern
+  filter(!is.na(mean_concern))
+
+region_states <- tibble(state = state.abb,
+  region9 = case_when(state %in% c("CT","MA","ME","NH","RI","VT") ~ "New England",
+    state %in% c("NJ","NY","PA") ~ "Mid-Atlantic",
+    state %in% c("IL","IN","MI","OH","WI") ~ "East-North Central",
+    state %in% c("IA","KS","MN","MO","ND","NE","SD") ~ "West-North Central",
+    state %in% c("DC","DE","FL","GA","MD","NC","SC","VA","WV") ~ "South Atlantic",
+    state %in% c("AL","KY","MS","TN") ~ "East-South Central",
+    state %in% c("AR","LA","OK","TX") ~ "West-South Central",
+    state %in% c("AZ","CO","ID","MT","NM","NV","UT","WY") ~ "Mountain",
+    state %in% c("AK","CA","HI","OR","WA") ~ "Pacific",
+    TRUE ~ NA_character_))
+
+map_df_time <- region_states %>%
+  left_join(region_scores_time, by = "region9", relationship = "many-to-many") %>%
+  filter(!is.na(region9))
+
+#the base plot for the US map
+base_map_plot <- plot_usmap(data = map_df_time, values = "mean_concern", color = "white") +
+  
+  #construct the fill scale
+  scale_fill_continuous(
+    name = "Mean Climate Concern Score",
+    low = "lightblue",
+    high = "darkred",
+    limits = c(min(map_df_time$mean_concern, na.rm = TRUE), 
+               max(map_df_time$mean_concern, na.rm = TRUE))) +
+  #labels and title
+  labs(title = "Evolution of Climate Concern by U.S. Region",
+    #so the graph shows the wave its showing 
+    subtitle = "Year: {closest_state}") +
+  #make sure it is clearly legible
+  theme(legend.position = "right",
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, face = "bold"))
+
+#put it together
+animated_map_plot <- base_map_plot +
+  #this is what will create the cycling of the year
+  transition_states(year, transition_length = 2, state_length = 1)
+
+#animate 
+animate(animated_map_plot, renderer = gifski_renderer(), nframes = 50, fps = 5, 
+        width = 800, height = 500)
+```
+```{r}
+#as we were interested in understanding how concern changed by region across time, we created a visual that will show a map of the US each year that the survey ran and display the concern by party
+make_party_animation <- function(party_name) {
+
+  #to create the visual we had to create a table such that the map fcn could understand the regions
+  region_states <- tibble(state = state.abb,
+   region9 = case_when(state %in% c("CT","MA","ME","NH","RI","VT") ~ "New England",
+    state %in% c("NJ","NY","PA") ~ "Mid-Atlantic",
+    state %in% c("IL","IN","MI","OH","WI") ~ "East-North Central",
+    state %in% c("IA","KS","MN","MO","ND","NE","SD") ~ "West-North Central",
+    state %in% c("DC","DE","FL","GA","MD","NC","SC","VA","WV") ~ "South Atlantic",
+    state %in% c("AL","KY","MS","TN") ~ "East-South Central",
+    state %in% c("AR","LA","OK","TX") ~ "West-South Central",
+    state %in% c("AZ","CO","ID","MT","NM","NV","UT","WY") ~ "Mountain",
+    state %in% c("AK","CA","HI","OR","WA") ~ "Pacific",
+    TRUE ~ NA_character_))
+  
+  #we filter to be able to seperate by party
+  party_data <- climatedata %>%
+    filter(party_w_leaners == party_name) %>%
+    mutate(year = as.integer(year)) %>%
+    group_by(year, region9) %>%
+    summarize(mean_concern = weighted.mean(concern_score, w = weight_aggregate, na.rm = TRUE),
+              .groups = "drop")
+
+  #join our states data with our party data
+  party_map <- region_states %>%
+    left_join(party_data, by = "region9", relationship = "many-to-many") %>%
+    filter(!is.na(mean_concern))
+
+  #fix the color scale 
+  fill_limits <- range(party_mapf$mean_concern, na.rm = TRUE)
+
+  #base map
+  base_map <- plot_usmap( data = party_map, values = "mean_concern", color = "white") +
+    scale_fill_continuous(name = "Mean Climate Concern Score",
+      low = "lightblue", high = "darkred", limits = fill_limits) 
+  + labs(title = paste0("Climate Concern by U.S. Region — ", party_name),
+      subtitle = "Year: {frame_time}") 
+  + theme(legend.position = "right", plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5, face = "bold"))
+
+  #animation details
+  animated_plot <- base_map + transition_time(year) + ease_aes("linear")
+
+  animate(animated_plot, renderer = gifski_renderer(), nframes = 80, fps = 6,
+          width = 800, height = 500, end_pause = 10)
+}
+
+anim_dem <- make_party_animation("Democrats")
+anim_rep <- make_party_animation("Republicans")
+anim_ind <- make_party_animation("Independent/Other")
+
+```
+
+
+Next Steps. In bullet points, outline the analyses and visualizations you plan to complete for the final
+report. Focus on what remains to be done and how it advances your research question.
+• Models: What statistical models will you run (e.g., linear, logistic, or random forest)? Will you test
+interactions or subgroup effects?
+• Variables: Which predictors, controls, or transformations will you add? Any new derived or recoded
+variables?
+• Visualizations: What plots will you produce to summarize results (e.g., coefficient plots, predicted
+probabilities, subgroup comparisons)? How will you display uncertainty (error bars, confidence inter-
+vals)?
+• Robustness Checks: Any robustness checks to weights, missing data, or model assumptions?
+Example:
+• Estimate a logistic regression predicting low election confidence from misinformation expo-
+sure and partisanship.
+• Visualize the distribution of predicted probabilities within subgroups as histograms.
+• Compare weighted and unweighted estimates as a robustness check.

@@ -2,18 +2,16 @@
 title: "politicalanalyticsfinal_projectfirstvis"
 author: "vat2129"
 date: "2025-11-19"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
-
-For this assignment, please produce a report and (1) submit the knitted PDF to Courseworks and (2) upload
-both the Rmd file and PDF output to your Github repo with the following (in mostly complete sentences,
-not bullet points). This draft need not be longer than 1-2 pages.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
+Libraries & Set Up
 ```{r}
 library(shiny)
 library(dplyr)
@@ -26,7 +24,7 @@ library(usmap)
 library(gganimate)
 library(gifski)
 ```
-
+Cleaning & Exploring the Data
 ```{r}
 bigclimatedata <- foreign::read.spss("~/datasci01/data/CCAM SPSS Data 2008-2024.sav", to.data.frame=TRUE)
 
@@ -47,7 +45,7 @@ climatedata <- bigclimatedata %>%
     party_w_leaners == "No party/Not interested in politics" ~ "Independent/Other",
     TRUE ~ party_w_leaners)) %>%
   mutate(across(starts_with("harm"), ~case_when(
-    . == "Don't know" ~ 0, 
+    . == "Don't know" ~ NA, 
     . == "Not at all" ~ 1,
     . == "Only a little" ~ 2,
     . == "A moderate amount" ~ 3,
@@ -64,7 +62,7 @@ climatedata <- bigclimatedata %>%
   mutate(concern_score = rowMeans(across(starts_with("harm")), na.rm = TRUE))
 
 ```
-Fun Numbers to note!
+Numbers to Consider
 ```{r}
 #2256 people in this data set explicitly believe that global warming is not happening
 climatedata %>% 
@@ -81,10 +79,8 @@ concern_trends <- climatedata %>%
   #remove NA 
   filter(!is.na(region9))
 concern_trends
-```
 
-
-```{r}
+#wanted to understand the concern across different generations
 climatedata %>%
   summarize(mean = mean(concern_score, na.rm = TRUE), 
             sd = sd(concern_score, na.rm = TRUE),
@@ -92,6 +88,7 @@ climatedata %>%
             .by = c(party_w_leaners, generation))%>%
   arrange(party_w_leaners, generation)
 
+#wanted to understand the concern across different regions
 climatedata %>%
   summarize(mean = mean(concern_score, na.rm = TRUE), 
             sd = sd(concern_score, na.rm = TRUE),
@@ -100,8 +97,10 @@ climatedata %>%
   arrange(party_w_leaners, region9)
 ```
 
-
+FIGURE 1 - Climate Concern by Region and Party 
 ```{r}
+#FIGURE 1 - Climate Concern by Region and Party 
+
 #here is a more general look of the various parties concern of climate change (not factoring in time)
 region_party_scores <- climatedata %>%
   group_by(region9, party_w_leaners) %>%
@@ -138,7 +137,14 @@ plot_usmap(data = map_df,
   facet_wrap(~ party_w_leaners) +
   theme(legend.position = "right")
 ```
+
+Here we are visualizing climate concern which is an index that we created utilizing six survey questions from the data set. The highest concern score someone could achieve is 4, meaning that were very worried about climate change, while the lowest score possible would be a 1 which would mean you were not concerned about climate change in any way. In Figure 1 we are visualize concern by region of the country separated out by party. For this visual we took the previous cleaned data (climate data) that included our questions of interest and demographic information, and that created the new climate concern index. 
+We then took this cleaned data and grouped it by region and party, as well as created a weighted mean with the aggregate weights including in the data set. We also filtered out any NA values. When we wanted to take a closer look at region, the only visual that felt appropriate was a map. As visible in the table above, even dividing by region and party we do not have a subsection with n less than 366 (Independents in New England). What we visualize here aligns very closely with what our hypothesis was. Party seemed to be a much stronger indicator of climate concern than region with Democrats being most concerned, then Independents, and then Republicans. There was only very slight concern variations by region.
+
+FIGURE 2 - Evolution of Climate Concern by U.S. Region
 ```{r}
+#FIGURE 2 - Evolution of Climate Concern by U.S. Region
+
 #here is the general map over time (all parties)
 region_scores_time <- climatedata %>%
   mutate(year = as.integer(year)) %>%
@@ -190,10 +196,12 @@ animated_map_plot <- base_map_plot +
   #this is what will create the cycling of the year
   transition_states(year, transition_length = 2, state_length = 1)
 
-#animate 
-animate(animated_map_plot, renderer = gifski_renderer(), nframes = 50, fps = 5, 
-        width = 800, height = 500)
+#animate (commented out for pdf)
+#animate(animated_map_plot, renderer = gifski_renderer(), nframes = 50, fps = 5, 
+       # width = 800, height = 500)
 ```
+
+FIGURE 3,4,5: Evolution of Climate Concern by U.S. Region by Party 
 ```{r}
 #as we were interested in understanding how concern changed by region across time, we created a visual that will show a map of the US each year that the survey ran and display the concern by party
 make_party_animation <- function(party_name) {
@@ -243,8 +251,10 @@ make_party_animation <- function(party_name) {
           width = 800, height = 500, end_pause = 10)
 }
 
-anim_dem <- make_party_animation("Democrats")
-anim_rep <- make_party_animation("Republicans")
-anim_ind <- make_party_animation("Independent/Other")
+#Figures 3, 4, & 5 Evolution of Climate Concern by U.S. Region by Party 
+#anim_dem <- make_party_animation("Democrats")
+#anim_rep <- make_party_animation("Republicans")
+#anim_ind <- make_party_animation("Independent/Other")
 
 ```
+
